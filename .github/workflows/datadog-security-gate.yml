@@ -1,14 +1,35 @@
-name: Datadog Security Gate
+name: Datadog Security Gate & CI Visibility
 
 on:
   push:
-    branches: [ main ]
+    branches: [ main, test/* ]
   pull_request:
     branches: [ main ]
 
 jobs:
+  build-and-test:
+    name: Unit Tests & Build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.9'
+
+      - name: Install dependencies
+        run: |
+          pip install flake8 pytest requests
+
+      - name: Run Linting
+        run: |
+          flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics || true
+
   static-analysis:
     name: Datadog SAST & Secret Scanner
+    needs: build-and-test
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository

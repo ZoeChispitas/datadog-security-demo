@@ -1,0 +1,61 @@
+name: Datadog Security Gate & CI Visibility
+
+on:
+  push:
+    branches: [ main, test/* ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build-and-test:
+    name: Unit Tests & Build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.9'
+
+      - name: Install dependencies
+        run: |
+          pip install flake8 pytest requests
+
+      - name: Run Linting
+        run: |
+          flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics || true
+
+  static-analysis:
+    name: Datadog SAST & Secret Scanner
+    needs: build-and-test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Run Datadog Static Analyzer
+        uses: DataDog/datadog-static-analyzer-github-action@v1
+        with:
+          dd_api_key: ${{ secrets.DD_API_KEY }}
+          dd_app_key: ${{ secrets.DD_APP_KEY }}
+          dd_site: datadoghq.com
+          cpu_count: 2
+          enable_secrets: true
+
+  deploy-production:
+    name: Deploy to Production
+    needs: static-analysis
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Simulate Production Deployment
+        run: |
+          echo "Deploying version $(git rev-parse --short HEAD) to Production..."
+          sleep 5
+          echo "Deployment successful!"

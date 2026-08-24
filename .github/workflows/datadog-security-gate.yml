@@ -21,7 +21,7 @@ jobs:
 
       - name: Install dependencies
         run: |
-          pip install flake8 pytest requests
+          pip install flake8 pytest requests flask
 
       - name: Run Linting
         run: |
@@ -46,16 +46,16 @@ jobs:
 
   deploy-production:
     name: Deploy to Production
-    needs: static-analysis
-    if: github.ref == 'refs/heads/main'
+    needs: [build-and-test, static-analysis]
+    if: always() && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     environment: production
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Simulate Production Deployment
+      - name: Mark Deployment in Datadog
         run: |
-          echo "Deploying version $(git rev-parse --short HEAD) to Production..."
-          sleep 5
-          echo "Deployment successful!"
+          echo "Desplegando versión $(git rev-parse --short HEAD) en producción..."
+          npm install -g @datadog/datadog-ci
+          DATADOG_API_KEY="${{ secrets.DD_API_KEY }}" DATADOG_SITE="datadoghq.com" datadog-ci dora deployment --service datadog-security-demo --env production --started-at $(date +%s) --finished-at $(date +%s)

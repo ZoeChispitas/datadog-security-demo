@@ -43,3 +43,19 @@ jobs:
           dd_site: datadoghq.com
           cpu_count: 2
           enable_secrets: true
+
+  deploy-production:
+    name: Deploy to Production
+    needs: static-analysis
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Simulate Production Deployment
+        run: |
+          echo "Deploying version $(git rev-parse --short HEAD) to Production..."
+          sleep 5
+          echo "Deployment successful!"

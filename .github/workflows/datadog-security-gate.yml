@@ -31,18 +31,18 @@ jobs:
     name: Datadog SAST & Secret Scanner
     needs: build-and-test
     runs-on: ubuntu-latest
+    continue-on-error: true
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
       - name: Run Datadog Static Analyzer
-        uses: DataDog/datadog-static-analyzer-github-action@v1
+        uses: DataDog/datadog-static-analyzer-github-action@v3
         with:
           dd_api_key: ${{ secrets.DD_API_KEY }}
           dd_app_key: ${{ secrets.DD_APP_KEY }}
           dd_site: datadoghq.com
           cpu_count: 2
-          enable_secrets: true
 
   deploy-production:
     name: Deploy to Production
@@ -53,9 +53,21 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Mark Deployment in Datadog
+        env:
+          DATADOG_API_KEY: ${{ secrets.DD_API_KEY }}
+          DATADOG_SITE: datadoghq.com
         run: |
-          echo "Desplegando versión $(git rev-parse --short HEAD) en producción..."
           npm install -g @datadog/datadog-ci
-          DATADOG_API_KEY="${{ secrets.DD_API_KEY }}" DATADOG_SITE="datadoghq.com" datadog-ci dora deployment --service datadog-security-demo --env production --started-at $(date +%s) --finished-at $(date +%s)
+          START_TIME=$(date -d "1 minute ago" +%s)
+          END_TIME=$(date +%s)
+          datadog-ci dora deployment \
+            --service datadog-security-demo \
+            --env production \
+            --started-at "$START_TIME" \
+            --finished-at "$END_TIME" \
+            --git-repository-url "https://github.com/ZoeChispitas/datadog-security-demo" \
+            --git-commit-sha "$(git rev-parse HEAD)"

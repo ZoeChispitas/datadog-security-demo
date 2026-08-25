@@ -50,9 +50,9 @@ jobs:
         run: |
           npm install -g @datadog/datadog-ci
           
-          # 1. Enviar evento de despliegue
-          DEPLOY_START=$(date -d "10 minutes ago" +%s)
-          DEPLOY_END=$(date -d "8 minutes ago" +%s)
+          # 1. Registrar el despliegue
+          DEPLOY_START=$(date -d "12 minutes ago" +%s)
+          DEPLOY_END=$(date -d "10 minutes ago" +%s)
           datadog-ci dora deployment \
             --service datadog-security-demo \
             --env production \
@@ -61,23 +61,26 @@ jobs:
             --git-repository-url "https://github.com/ZoeChispitas/datadog-security-demo" \
             --git-commit-sha "${{ github.sha }}"
 
-          # 2. Enviar evento de incidente resuelto a la API DORA de Datadog
-          NOW=$(date +%s)
-          INC_START=$(( (NOW - 360) * 1000000000 ))
-          INC_END=$(( NOW * 1000000000 ))
+          # 2. Registrar el incidente en segundos (Unix Epoch)
+          INC_START=$(date -d "10 minutes ago" +%s)
+          INC_END=$(date -d "2 minutes ago" +%s)
           
-          curl -X POST "https://api.datadoghq.com/api/v2/dora/incident" \
+          curl -s -X POST "https://api.datadoghq.com/api/v2/dora/incident" \
             -H "Content-Type: application/json" \
             -H "DD-API-KEY: ${{ secrets.DD_API_KEY }}" \
             -d "{
               \"data\": {
                 \"attributes\": {
                   \"env\": \"production\",
-                  \"name\": \"Error 500 detectado tras despliegue\",
+                  \"name\": \"Degradacion de servicio en produccion\",
                   \"services\": [\"datadog-security-demo\"],
                   \"severity\": \"SEV-1\",
                   \"started_at\": $INC_START,
-                  \"finished_at\": $INC_END
+                  \"finished_at\": $INC_END,
+                  \"git\": {
+                    \"repository_url\": \"https://github.com/ZoeChispitas/datadog-security-demo\",
+                    \"commit_sha\": \"${{ github.sha }}\"
+                  }
                 }
               }
             }"

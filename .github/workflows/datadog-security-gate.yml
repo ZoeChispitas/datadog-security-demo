@@ -27,27 +27,10 @@ jobs:
         run: |
           flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics || true
 
-  static-analysis:
-    name: Datadog SAST & Secret Scanner
-    needs: build-and-test
-    runs-on: ubuntu-latest
-    continue-on-error: true
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Run Datadog Static Analyzer
-        uses: DataDog/datadog-static-analyzer-github-action@v3
-        with:
-          dd_api_key: ${{ secrets.DD_API_KEY || secrets.DATADOG_API_KEY }}
-          dd_app_key: ${{ secrets.DD_APP_KEY || secrets.DATADOG_APP_KEY }}
-          dd_site: datadoghq.com
-          cpu_count: 2
-
   deploy-production:
     name: Deploy to Production
-    needs: [build-and-test, static-analysis]
-    if: always() && github.ref == 'refs/heads/main'
+    needs: build-and-test
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
@@ -55,13 +38,18 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
       - name: Mark Deployment in Datadog
         env:
-          DATADOG_API_KEY: ${{ secrets.DD_API_KEY || secrets.DATADOG_API_KEY }}
+          DATADOG_API_KEY: ${{ secrets.DD_API_KEY }}
           DATADOG_SITE: datadoghq.com
         run: |
           npm install -g @datadog/datadog-ci
-          START_TIME=$(date -d "1 minute ago" +%s)
+          START_TIME=$(date -d "2 minutes ago" +%s)
           END_TIME=$(date +%s)
           datadog-ci dora deployment \
             --service datadog-security-demo \

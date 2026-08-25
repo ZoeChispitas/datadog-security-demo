@@ -46,13 +46,14 @@ jobs:
       - name: Mark Deployment & Incident in Datadog
         env:
           DATADOG_API_KEY: ${{ secrets.DD_API_KEY }}
+          DATADOG_APP_KEY: ${{ secrets.DD_APP_KEY }}
           DATADOG_SITE: datadoghq.com
         run: |
           npm install -g @datadog/datadog-ci
           
-          # 1. Registrar el despliegue
-          DEPLOY_START=$(date -d "12 minutes ago" +%s)
-          DEPLOY_END=$(date -d "10 minutes ago" +%s)
+          # 1. Registrar despliegue en producción
+          DEPLOY_START=$(date -d "15 minutes ago" +%s)
+          DEPLOY_END=$(date -d "12 minutes ago" +%s)
           datadog-ci dora deployment \
             --service datadog-security-demo \
             --env production \
@@ -61,18 +62,21 @@ jobs:
             --git-repository-url "https://github.com/ZoeChispitas/datadog-security-demo" \
             --git-commit-sha "${{ github.sha }}"
 
-          # 2. Registrar el incidente en segundos (Unix Epoch)
-          INC_START=$(date -d "10 minutes ago" +%s)
-          INC_END=$(date -d "2 minutes ago" +%s)
+          # 2. Registrar incidente en nanosegundos (formato nativo Datadog v2)
+          NOW=$(date +%s)
+          INC_START=$(( (NOW - 600) * 1000000000 ))
+          INC_END=$(( NOW * 1000000000 ))
           
-          curl -s -X POST "https://api.datadoghq.com/api/v2/dora/incident" \
+          echo "Enviando incidente a Datadog API v2..."
+          RESPONSE=$(curl -s -w "\nHTTP_STATUS:%{http_code}" -X POST "https://api.datadoghq.com/api/v2/dora/incident" \
             -H "Content-Type: application/json" \
             -H "DD-API-KEY: ${{ secrets.DD_API_KEY }}" \
+            -H "DD-APPLICATION-KEY: ${{ secrets.DD_APP_KEY }}" \
             -d "{
               \"data\": {
                 \"attributes\": {
                   \"env\": \"production\",
-                  \"name\": \"Degradacion de servicio en produccion\",
+                  \"name\": \"Falla critica en servicio post-deploy\",
                   \"services\": [\"datadog-security-demo\"],
                   \"severity\": \"SEV-1\",
                   \"started_at\": $INC_START,
@@ -83,4 +87,7 @@ jobs:
                   }
                 }
               }
-            }"
+            }")
+
+          echo "Respuesta de Datadog:"
+          echo "$RESPONSE"

@@ -43,18 +43,32 @@ jobs:
         with:
           node-version: 20
 
-      - name: Mark Deployment in Datadog
+      - name: Mark Deployment & Incident in Datadog
         env:
           DATADOG_API_KEY: ${{ secrets.DD_API_KEY }}
           DATADOG_SITE: datadoghq.com
         run: |
           npm install -g @datadog/datadog-ci
-          START_TIME=$(date -d "2 minutes ago" +%s)
-          END_TIME=$(date +%s)
+          
+          # 1. Registrar el despliegue
+          DEPLOY_START=$(date -d "6 minutes ago" +%s)
+          DEPLOY_END=$(date -d "5 minutes ago" +%s)
           datadog-ci dora deployment \
             --service datadog-security-demo \
             --env production \
-            --started-at "$START_TIME" \
-            --finished-at "$END_TIME" \
+            --started-at "$DEPLOY_START" \
+            --finished-at "$DEPLOY_END" \
             --git-repository-url "https://github.com/ZoeChispitas/datadog-security-demo" \
             --git-commit-sha "${{ github.sha }}"
+
+          # 2. Registrar la falla e incidente resuelto (puebla Change Failure Rate y Recovery Time)
+          INCIDENT_START=$(date -d "5 minutes ago" +%s)
+          INCIDENT_END=$(date +%s)
+          datadog-ci dora incident \
+            --service datadog-security-demo \
+            --env production \
+            --started-at "$INCIDENT_START" \
+            --finished-at "$INCIDENT_END" \
+            --git-repository-url "https://github.com/ZoeChispitas/datadog-security-demo" \
+            --git-commit-sha "${{ github.sha }}" \
+            --severity "SEV-1"

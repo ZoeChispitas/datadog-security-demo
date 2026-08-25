@@ -7,7 +7,7 @@ def index():
     return jsonify({
         "status": "running",
         "environment": "production",
-        "version": "1.1.0"
+        "version": "1.1.1"
     })
 
 if __name__ == "__main__":
